@@ -56,7 +56,9 @@ class Node:
         self.label = label # vector length 96 --> represent each label on 8 x12 grid
         self.action = action # vector of [y1, x1, y2, x2]
         self.parent = parent # the node in which it came from 
-        if action is not None: self.cost = abs(action[0] - action[2]) + abs(action[1] + action[3]) # cost of action to get to this node
+        self.cost = abs(action[0] - action[2]) + abs(action[1] + action[3]) if action is not None else 0 # cost of action to get to this node
+        self.gn = parent.gn + self.cost if parent is not None else self.cost
+        self.hn = heuristic(np.sum(w[:, 2])/2, self)
         self.score = imbalance_score(w)
 
     def __eq__(self, other: object):
@@ -88,6 +90,7 @@ def a_star(X : np.ndarray):
     while not open.empty():
 
         fn, node = open.get()
+        print(node.hn)
         if (node.score <= min_global) or (node.score <= min_local): break
         closed.add(node)
         break
