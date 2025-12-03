@@ -6,9 +6,41 @@ def imbalance_score(w):
     return abs(np.sum(w[mask, 2]) - np.sum(w[~mask, 2]))    
 
 
-def heuristic():
-    pass
+def heuristic(target_weight: int, node: object):
+    '''
+    goal: find minimum number of crates it takes to fill up the lesser side to the target_weight
+    '''
+    w_mask = (node.label != 'UNUSED') & (node.label != 'NAN')
+    p_mask = node.w[:, 1] <= 6
+    # weights of each side P & S
+    p_weights = node.w[p_mask & w_mask, 2]
+    s_weights = node.w[~p_mask & w_mask, 2]
+    # each side total weight - ideal weight
+    p_diff = np.sum(p_weights) - target_weight
+    s_diff = np.sum(s_weights) - target_weight
+    # picking which side receives weights
+    smaller_diff = None
+    bigger_weights = None
+    if p_diff <= s_diff: # heaviver side is S, moving to P
+        smaller_diff = abs(p_diff)
+        bigger_weights = s_weights
+    else:
+        smaller_diff = abs(s_diff)
+        bigger_weights = p_weights
+    # algorithm
+    sum_weight = 0 # to get to at least diff or greater
+    sum_count = 0
+    while sum_weight < smaller_diff:
+        # pick weight that fills nearly the same about as smaller difference from current to target weight
+        idx = np.argmin(np.abs(bigger_weights - smaller_diff))
+        weight = bigger_weights[idx]
 
+        sum_weight+=weight
+        sum_count+=1
+        # remove weight from heavier side
+        bigger_weights = np.delete(bigger_weights, idx, axis=0)
+    
+    return sum_count
 
 def neighbors():
     pass
@@ -45,12 +77,13 @@ def a_star(X : np.ndarray):
     open.put((0, start))
     opened.add(start)
     # set goal
-    min_local = round(np.sum(start.w[:, 2])*0.10, 2)
-    min_global = np.diff(np.sort(start.w[:, 2])[0:2]).item() if X.shape[0] % 2 == 0 else np.min(start.w[:, 2]).item()
+    total_weight = np.sum(start.w[:, 2])
+    target_weight = total_weight/2
 
-    print(min_local, min_global)
-    print(len(opened))
+    min_local = round(total_weight*0.10, 2)
+    min_global = np.diff(np.unique(np.sort(start.w[:, 2]))[0:2]).item() if X.shape[0] % 2 == 0 else np.min(start.w[:, 2]).item()
 
+    print(heuristic(target_weight, start))
     while not open.empty():
 
         fn, node = open.get()
