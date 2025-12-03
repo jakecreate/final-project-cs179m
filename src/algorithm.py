@@ -12,12 +12,15 @@ def heuristic(target_weight: int, node: object):
     '''
     w_mask = (node.label != 'UNUSED') & (node.label != 'NAN')
     p_mask = node.w[:, 1] <= 6
+
     # weights of each side P & S
     p_weights = node.w[p_mask & w_mask, 2]
     s_weights = node.w[~p_mask & w_mask, 2]
+
     # each side total weight - ideal weight
     p_diff = np.sum(p_weights) - target_weight
     s_diff = np.sum(s_weights) - target_weight
+
     # picking which side receives weights
     smaller_diff = None
     bigger_weights = None
@@ -27,6 +30,7 @@ def heuristic(target_weight: int, node: object):
     else:
         smaller_diff = abs(s_diff)
         bigger_weights = p_weights
+
     # algorithm
     sum_weight = 0 # to get to at least diff or greater
     sum_count = 0
@@ -47,7 +51,6 @@ def neighbors():
 
 
 class Node:
-
     def __init__(self, w: np.ndarray, label: np.ndarray, action: np.ndarray, parent: object):
         self.w = w # 96 by 3 where cols= y, x, weight --> represent 8 x 12 grid
         self.label = label # vector length 96 --> represent each label on 8 x12 grid
@@ -55,7 +58,6 @@ class Node:
         self.parent = parent # the node in which it came from 
         if action is not None: self.cost = abs(action[0] - action[2]) + abs(action[1] + action[3]) # cost of action to get to this node
         self.score = imbalance_score(w)
-        
 
     def __eq__(self, other: object):
         return np.array.equal(self.w, other.w) and np.array.equal(self.label == other.label)
@@ -83,14 +85,13 @@ def a_star(X : np.ndarray):
     min_local = round(total_weight*0.10, 2)
     min_global = np.diff(np.unique(np.sort(start.w[:, 2]))[0:2]).item() if X.shape[0] % 2 == 0 else np.min(start.w[:, 2]).item()
 
-    print(heuristic(target_weight, start))
     while not open.empty():
 
         fn, node = open.get()
-        if (node.score <= min_global) or (node.score <= min_local):
-            print('hello')
+        if (node.score <= min_global) or (node.score <= min_local): break
+        closed.add(node)
         break
-
+        
 
 if __name__ == '__main__':
     FOLDER_PATH = './data/'
