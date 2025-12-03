@@ -62,7 +62,7 @@ class Node:
         self.score = imbalance_score(w)
 
     def __eq__(self, other: object):
-        return np.array.equal(self.w, other.w) and np.array.equal(self.label == other.label)
+        return np.array.equal(self.w, other.w) and np.array.equal(self.label, other.label)
 
     
     def __hash__(self):
