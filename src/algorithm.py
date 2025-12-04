@@ -46,8 +46,46 @@ def heuristic(target_weight: int, node: object):
     
     return sum_count
 
-def neighbors():
-    pass
+# return possible neighbors of node
+def neighbors(node: object):
+    is_crate = (node.label != 'UNUSED') & (node.label != 'NAN')       
+    is_avail = (node.label != 'NAN') & ~is_crate
+
+    idx_top_avail_list = []
+    idx_top_crates_list = []
+    # in each col
+    for col in range(1, 13):
+        is_col = node.w[:, 1] == col
+        idx_crates = (is_col & is_crate).nonzero()[0] # idx of each crate
+        idx_top_avail = (is_col & is_avail).nonzero()[0]# idx of available spot
+        
+        if idx_crates.size != 0:
+            idx_top_crates_list.append(idx_crates[-1])
+        if idx_top_avail.size !=0:
+            idx_top_avail_list.append(idx_top_avail[0])
+    
+    top_avail = np.vstack(idx_top_avail_list).ravel()
+    top_crates = np.vstack(idx_top_crates_list).ravel()
+
+    print('top_avail:', top_avail)
+    print('top_crates:', top_crates)
+    neighbors_list = []
+    for idx_crate in top_crates:
+        crate = node.w[idx_crate]
+        col_num = crate[1]
+        for idx_spot in np.delete(top_avail, col_num - 1):
+            spot = node.w[idx_spot]
+            # create attributes
+            action = np.array([crate[0], crate[1], spot[0], spot[1]])
+            w = node.w.copy()
+            label = node.label.copy()
+            # swap
+            w[[idx_crate, idx_spot]] = w[[idx_spot, idx_crate]]
+            label[[idx_crate, idx_spot]] = label[[idx_spot, idx_crate]]
+           
+            neighbors_list.append(Node(w, label, action, node))
+        
+    return neighbors_list # consider adding top limit 
 
 
 class Node:
@@ -60,6 +98,7 @@ class Node:
         self.gn = parent.gn + self.cost if parent is not None else self.cost
         self.hn = heuristic(np.sum(w[:, 2])/2, self)
         self.score = imbalance_score(w)
+
 
     def __eq__(self, other: object):
         return np.array.equal(self.w, other.w) and np.array.equal(self.label, other.label)
@@ -93,12 +132,16 @@ def a_star(X : np.ndarray):
         print(node.hn)
         if (node.score <= min_global) or (node.score <= min_local): break
         closed.add(node)
+        
+        for neighbor in neighbors(node):
+            break
+        
         break
         
 
 if __name__ == '__main__':
     FOLDER_PATH = './data/'
-    FILE_NAME = 'ShipCase6.txt'
+    FILE_NAME = 'ShipCase4.txt'
     X = np.loadtxt(FOLDER_PATH+FILE_NAME, dtype=str, delimiter=',')
     X[:, 0] = np.char.strip(X[:, 0], "[")
     X[:, 1] = np.char.strip(X[:, 1], "]")
