@@ -27,35 +27,50 @@ ships = {}
 def call_algorithm(filename):
     FOLDER_PATH = './data/'
     X = np.loadtxt(FOLDER_PATH+filename, dtype=str, delimiter=',')
+
+    # remove unnecessary characters
     X[:, 0] = np.char.strip(X[:, 0], "[")
     X[:, 1] = np.char.strip(X[:, 1], "]")
     X[:, 2] = np.char.strip(X[:, 2], "{} ")
     X[:, 3] = np.char.strip(X[:, 3], " ")
-    X = np.hstack((X, np.array([[""] * len(X)]).T))
-    ships[session['session_id']]['grid'] = X
+
     # CALL THE ALGORITHM HERE
     # steps, total_time = algorithm(X)
+    
+    # example data
     total_time = 10
     steps = np.array([[1, 2, 3, 4],
                       [2, 3, 4, 5]])
     steps = np.insert(steps, 0, [-1, -1, steps[0, 0], steps[0, 1]], axis=0)
     steps = np.vstack((steps, [steps[-1, 2], steps[-1, 3], -1, -1]))
 
+    # add an extra column to specify color
+    X = np.hstack((X, np.array([[""] * len(X)]).T))
+
+    # initialize all of the info needed to display the grid
+    ships[session['session_id']]['grid'] = X
     ships[session['session_id']]['park'] = 'green'
     ships[session['session_id']]['steps'] = steps
     ships[session['session_id']]['num_steps'] = len(steps)
     ships[session['session_id']]['current_step_num'] = 0
     ships[session['session_id']]['total_time'] = total_time
+    
+    # turn y into a string. prepend a 0 if needed
     y = steps[0, 2]
     y_coord = str(y)
     if y < 10:
         y_coord = '0' + y_coord
-    x = steps[0, 3]
 
+    # turn x into a string. prepend a 0 if needed
+    x = steps[0, 3]
     x_coord = str(x)
     if x < 10:
         x_coord = '0' + x_coord
+
+    # get the row number that specifies the target cell
     index = np.where((X[:, 0] == y_coord) & (X[:, 1] == x_coord))[0]
+
+    # set its color to 'red'
     ships[session['session_id']]['grid'][index, 4] = 'red'
 
 def unique_token():
@@ -66,6 +81,7 @@ def unique_token():
         if token not in ships:
             return token
 
+# GET method that just redirects you to to start.html
 @app.route("/")
 def display_start():
     return render_template("start.html")
@@ -113,6 +129,7 @@ def upload():
     # if a file doesn't exist, redirect to the start page
     return redirect(url_for('display_start'))
 
+# GET method that just redirects you to to grid.html
 @app.route("/grid")
 def display_grid():
     return render_template("grid.html")
