@@ -22,7 +22,33 @@ app.secret_key = secrets.token_hex()
 #           where n is the step we're currently on.
 # 'num_steps' = total number of steps.
 # 'current_step_num' = a counter to track what step we are currently on. Initialized to 0 so that it syncs with the array 'steps'
+# 'move_container' = a boolean that is true if we move a container on this step and false if we're
+#                    just repositioning the claw to the next cell.
+# 'last_step' = a boolean that is true if we are currently on the last step and false otherwise.
 ships = {}
+PARK_Y_COORD = 9
+PARK_X_COORD = 1
+
+# input: none
+# output: a reference to the dictionary holding all of the info for the current session.
+#         This way we don't have to type ships[session['session_id']] all the time.
+def get_ship():
+    return ships[session['session_id']]
+
+# input: ints y and x that are the y and x coords of a cell
+# output: the index in the grid of the row that contain the info on the specified cell
+def grid_index(y, x):
+    y_coord = str(y)
+    if y < 10:
+        y_coord = '0' + y_coord
+
+    x_coord = str(x)
+    if x < 10:
+        x_coord = '0' + x_coord
+
+    X = get_ship()['grid']
+    index = np.where((X[:, 0] == y_coord) & (X[:, 1] == x_coord))[0]
+    return index
 
 def call_algorithm(filename):
     FOLDER_PATH = './data/'
@@ -32,31 +58,30 @@ def call_algorithm(filename):
     X[:, 2] = np.char.strip(X[:, 2], "{} ")
     X[:, 3] = np.char.strip(X[:, 3], " ")
     X = np.hstack((X, np.array([[""] * len(X)]).T))
-    ships[session['session_id']]['grid'] = X
+    ship = get_ship()
+    ship['grid'] = X
     # CALL THE ALGORITHM HERE
     # steps, total_time = algorithm(X)
     total_time = 10
-    steps = np.array([[1, 2, 3, 4],
-                      [2, 3, 4, 5]])
-    steps = np.insert(steps, 0, [-1, -1, steps[0, 0], steps[0, 1]], axis=0)
-    steps = np.vstack((steps, [steps[-1, 2], steps[-1, 3], -1, -1]))
+    steps = np.array([[9, 1, 1, 2],
+                      [1, 2, 2, 3],
+                      [2, 3, 3, 4],
+                      [3, 4, 4, 5],
+                      [4, 5, 9, 1]])
+    # steps = np.insert(steps, 0, [-1, -1, steps[0, 0], steps[0, 1]], axis=0)
+    # steps = np.vstack((steps, [steps[-1, 2], steps[-1, 3], -1, -1]))
 
-    ships[session['session_id']]['park'] = 'green'
-    ships[session['session_id']]['steps'] = steps
-    ships[session['session_id']]['num_steps'] = len(steps)
-    ships[session['session_id']]['current_step_num'] = 0
-    ships[session['session_id']]['total_time'] = total_time
-    y = steps[0, 2]
-    y_coord = str(y)
-    if y < 10:
-        y_coord = '0' + y_coord
-    x = steps[0, 3]
+    ship['park'] = 'green'
+    ship['steps'] = steps
+    ship['num_steps'] = len(steps)
+    ship['current_step_num'] = 0
+    ship['total_time'] = total_time
+    ship['move_container'] = False
+    ship['last_step'] = False
 
-    x_coord = str(x)
-    if x < 10:
-        x_coord = '0' + x_coord
-    index = np.where((X[:, 0] == y_coord) & (X[:, 1] == x_coord))[0]
-    ships[session['session_id']]['grid'][index, 4] = 'red'
+    index = grid_index(steps[0, 2], steps[0, 3])
+    ship['grid'][index, 4] = 'red'
+    print(ships[session['session_id']])
 
 def unique_token():
     while True:
@@ -107,7 +132,7 @@ def upload():
 
         # also return the grid at the current step (which is step 1), the total number of steps, the current step
 
-        # display the grid
+        # redirect to the grid display page
         return redirect(url_for('display_grid'))
     
     # if a file doesn't exist, redirect to the start page
@@ -122,18 +147,90 @@ def display_grid():
 # Any method that starts with '/api' returns a json
 @app.route('/api/current_grid', methods = ['GET'])
 def current_grid():
-    return jsonify(grid=ships[session['session_id']]['grid'].tolist(),
-                   park_cell=ships[session['session_id']]['park'],
-                   steps=ships[session['session_id']]['steps'].tolist(),
-                   num_steps=ships[session['session_id']]['num_steps'],
-                   current_step_num=ships[session['session_id']]['current_step_num'])
+    ship = get_ship()
+    return jsonify(grid=ship['grid'].tolist(),
+                   park_cell=ship['park'],
+                   steps=ship['steps'].tolist(),
+                   num_steps=ship['num_steps'],
+                   current_step_num=ship['current_step_num'],
+                   is_last_step=ship['last_step'])
 
 # POST method to call when the user presses the enter key. returns the next grid step.
-# No input needed.
-# Output, a grid object containing the grid to display, the step we're on, the total number of steps.
+# Input: none
+# Output: all the info you need to display the graph
+#   - grid
+#   - park_cell
+#   - steps
+#   - num_steps
+#   - current_step_num
+#   - is_last_step
+# If you call this method and we're already on the last step, it will not advance the info
+# and will just return the grid data as if you were just calling the '/api/current_grid' method
 @app.route('/api/next_grid', methods = ['POST'])
 def next_grid():
-    pass
+    ship = get_ship()
+    
+    # if we're already on the last step, just return the json and do nothing else
+    if ship['last_step']:
+        return current_grid()
+
+    # update the manifest
+    
+    # append something to the log file
+
+    # clear the color of the first cell
+    curr_step = ship['current_step_num']
+    first_y_coord = ship['steps'][curr_step, 0]
+    first_x_coord = ship['steps'][curr_step, 1]
+    if first_y_coord == PARK_Y_COORD and first_x_coord == PARK_X_COORD:
+        ship['park'] = ''
+    else:
+        ship['grid'][grid_index(first_y_coord, first_x_coord), 4] = ''
+
+    # clear the color of the second cell
+    second_y_coord = ship['steps'][curr_step, 2]
+    second_x_coord = ship['steps'][curr_step, 3]
+    if second_y_coord == PARK_Y_COORD and second_x_coord == PARK_X_COORD:
+        ship['park'] = ''
+    else:
+        ship['grid'][grid_index(second_y_coord, second_x_coord), 4] = ''
+
+    # update 'grid'
+    # if we just moved a container, update the grid by swapping the info of those cells but not the coords
+    if ship['move_container']:
+        first_index = grid_index(first_y_coord, first_x_coord)
+        second_index = grid_index(second_y_coord, second_x_coord)
+        ship['grid'][first_index, 2], ship['grid'][second_index, 2] = ship['grid'][second_index, 2], ship['grid'][first_index, 2]
+        ship['grid'][first_index, 3], ship['grid'][second_index, 3] = ship['grid'][second_index, 3], ship['grid'][first_index, 3]
+
+    # update 'current_step_num'
+    ship['current_step_num'] += 1
+
+    # update 'move_container'
+    ship['move_container'] = not ship['move_container']
+
+    # color the source cell 'green'
+    new_step_num = ship['current_step_num']
+    new_first_y_coord = ship['steps'][new_step_num, 0]
+    new_first_x_coord = ship['steps'][new_step_num, 1]
+    if new_first_y_coord == PARK_Y_COORD and new_first_x_coord == PARK_X_COORD:
+        ship['park'] = 'green'
+    else:
+         ship['grid'][grid_index(new_first_y_coord, new_first_x_coord), 4] = 'green'
+
+    # color the target cell 'red'
+    new_second_y_coord = ship['steps'][new_step_num, 2]
+    new_second_x_coord = ship['steps'][new_step_num, 3]
+    if new_second_y_coord == PARK_Y_COORD and new_second_x_coord == PARK_X_COORD:
+        ship['park'] = 'red'
+    else:
+         ship['grid'][grid_index(new_second_y_coord, new_second_x_coord), 4] = 'red'
+
+    # if this is the last step, flip the boolean to indicate so
+    if ship['current_step_num'] == ship['num_steps'] - 1:
+        ship['last_step'] = True
+
+    return current_grid()
 
 if __name__ == '__main__':
     app.run(debug=True)
