@@ -27,25 +27,43 @@ def heuristic(target_weight: int, node: object):
     if p_diff <= s_diff: # heaviver side is S, moving to P
         smaller_diff = abs(p_diff)
         bigger_weights = s_weights
+        OP_SIDE = 7
     else:
         smaller_diff = abs(s_diff)
         bigger_weights = p_weights
+        OP_SIDE = 6
 
     # algorithm
     sum_weight = 0 # to get to at least diff or greater
-    sum_count = 0
+    h_cost = 0
+    
     while sum_weight < smaller_diff:
-        # pick weight that fills nearly the same about as smaller difference from current to target weight
-        idx = np.argmin(np.abs(bigger_weights - smaller_diff))
+        idxs = np.argsort(np.abs(bigger_weights - smaller_diff))
+        idx = idxs[idxs != 0][0] 
         weight = bigger_weights[idx]
 
         sum_weight+=weight
-        sum_count+=1
-        # remove weight from heavier side
-        bigger_weights = np.delete(bigger_weights, idx, axis=0)
-    
-    return sum_count
+        h_cost += abs(node.w[idx, 1] - OP_SIDE)
 
+        bigger_weights[idx] = 0
+    
+    return h_cost
+
+def terminal_graphic(node: object):
+
+    grid = np.empty(node.label.shape, dtype=object)
+    is_crate = (node.label != 'UNUSED') & (node.label != 'NAN')       
+    is_avail = (node.label != 'NAN') & ~is_crate
+
+    grid[is_crate] = 'c'
+    grid[is_avail] = ' '
+    grid[~is_crate & ~is_avail] = 'x'
+
+    grid = grid.reshape(8, 12)[::-1]
+    
+    return grid
+    
+        
 # return possible neighbors of node
 def neighbors(node: object):
     is_crate = (node.label != 'UNUSED') & (node.label != 'NAN')       
@@ -83,12 +101,21 @@ def neighbors(node: object):
             w = node.w.copy()
             label = node.label.copy()
             # swap
-            w[[idx_crate, idx_spot]] = w[[idx_spot, idx_crate]]
+            w[[idx_crate, idx_spot], 2] = w[[idx_spot, idx_crate], 2]
             label[[idx_crate, idx_spot]] = label[[idx_spot, idx_crate]]
            
             neighbors_list.append(Node(w, label, action, node))
         
     return neighbors_list # consider adding top limit 
+
+def optimal_path(node: object):
+    anchor = node
+    actions = []
+    while anchor.parent is not None:
+        actions.append(anchor.action)
+        anchor = anchor.parent
+
+    return np.vstack(actions)[::-1]
 
 
 class Node:
@@ -97,15 +124,18 @@ class Node:
         self.label = label # vector length 96 --> represent each label on 8 x12 grid
         self.action = action # vector of [y1, x1, y2, x2]
         self.parent = parent # the node in which it came from 
-        self.cost = abs(action[0] - action[2]) + abs(action[1] + action[3]) if action is not None else 0 # cost of action to get to this node
+        self.cost = abs(action[0] - action[2]) + abs(action[1] + action[3]) if action is not None else 0 # fix this later
         self.gn = parent.gn + self.cost if parent is not None else self.cost
         self.hn = heuristic(np.sum(w[:, 2])/2, self)
+        self.fn = self.gn + self.hn
         self.score = imbalance_score(w)
 
 
     def __eq__(self, other: object):
-        return np.array.equal(self.w, other.w) and np.array.equal(self.label, other.label)
+        return np.array_equal(self.w, other.w) and np.array_equal(self.label, other.label)
 
+    def __lt__(self, other):
+        return self.score <= other.score
     
     def __hash__(self):
         self.w.flags.writeable = False
@@ -116,32 +146,55 @@ class Node:
 def a_star(X : np.ndarray):
     # ds & init
     open = PriorityQueue()
-    opened = set()
     closed = set()
 
     start = Node(np.int64(X[:, 0:3]), X[:, 3], None, None) 
     open.put((0, start))
-    opened.add(start)
+    open_cost = {start: 0}
+
     # set goal
     total_weight = np.sum(start.w[:, 2])
     target_weight = total_weight/2
+    w_mask = (start.label != 'UNUSED') & (start.label != 'NAN')
+    weights = np.sort(start.w[w_mask, 2])
+
+    print('gn = 0', 'h(n) =', start.hn)
+    print(terminal_graphic(start))
 
     min_local = round(total_weight*0.10, 2)
-    min_global = np.diff(np.unique(np.sort(start.w[:, 2]))[0:2]).item() if X.shape[0] % 2 == 0 else np.min(start.w[:, 2]).item()
-
+    min_global = np.diff(np.unique(weights)[0:2]).item() if X.shape[0] % 2 == 0 else weights[0]
+    # begin
     while not open.empty():
 
         fn, node = open.get()
+        print('node popped!')
+        print('g(n) =', node.gn,'h(n) =', node.hn, 'f(n) =', node.fn)
+        print('balance_score:', node.score)
+        print(terminal_graphic(node))
+        input(':')
+        
+        if node in closed:
+            continue
 
-        if (node.score <= min_global) or (node.score <= min_local): break
+        if (node.score <= min_global) or (node.score <= min_local):
+            return optimal_path(node)
+
         closed.add(node)
-        
-        for neighbor in neighbors(node):
-            break
-        
-        break
-        
 
+        for child in neighbors(node):
+            if child not in open_cost:
+                open.put((child.fn, child))
+                open_cost[child] = child.fn
+            else:
+                if child.fn < open_cost[child]:
+                    print('already in open_queue but better')
+                    open.put((child.fn, child))
+                    open_cost[child] = child.fn
+                else:
+                    print('already in open_queue and costs more')
+
+    print('path not found.')
+    
 if __name__ == '__main__':
     FOLDER_PATH = './data/'
     FILE_NAME = 'ShipCase4.txt'
@@ -150,7 +203,8 @@ if __name__ == '__main__':
     X[:, 1] = np.char.strip(X[:, 1], "]")
     X[:, 2] = np.char.strip(X[:, 2], "{} ")
     X[:, 3] = np.char.strip(X[:, 3], " ")
+    actions = a_star(X)
 
-    a_star(X)
+    print(actions)
 
 
