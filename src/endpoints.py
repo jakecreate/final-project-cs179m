@@ -203,7 +203,7 @@ def next_grid():
 
     # if we just finished the last step, we'll clear the colors and flip to 'all_done'
     # bool to indicate that we're done. We will not change anything else.
-    if ship['current_step_num'] == ship['num_steps'] - 1:
+    if ship['current_step_num'] >= ship['num_steps'] - 1:
         ship['all_done'] = True
         return current_grid()
 
