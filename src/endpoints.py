@@ -24,7 +24,7 @@ app.secret_key = secrets.token_hex()
 # 'current_step_num' = a counter to track what step we are currently on. Initialized to 0 so that it syncs with the array 'steps'
 # 'move_container' = a boolean that is true if we move a container on this step and false if we're
 #                    just repositioning the claw to the next cell.
-# 'last_step' = a boolean that is true if we are currently on the last step and false otherwise.
+# 'all_done' = a boolean that is true if we are currently on the last step and false otherwise.
 ships = {}
 PARK_Y_COORD = 9
 PARK_X_COORD = 1
@@ -81,7 +81,7 @@ def call_algorithm(filename):
     ship['current_step_num'] = 0
     ship['total_time'] = total_time
     ship['move_container'] = False
-    ship['last_step'] = False
+    ship['all_done'] = False
 
     index = grid_index(steps[0, 2], steps[0, 3])
     ship['grid'][index, 4] = 'red'
@@ -159,7 +159,7 @@ def current_grid():
                    steps=ship['steps'].tolist(),
                    num_steps=ship['num_steps'],
                    current_step_num=ship['current_step_num'],
-                   is_last_step=ship['last_step'])
+                   all_done=ship['all_done'])
 
 # POST method to call when the user presses the enter key. returns the next grid step.
 # Input: none
@@ -177,7 +177,7 @@ def next_grid():
     ship = get_ship()
     
     # if we're already on the last step, just return the json and do nothing else
-    if ship['last_step']:
+    if ship['all_done']:
         return current_grid()
 
     # update the manifest
@@ -200,6 +200,12 @@ def next_grid():
         ship['park'] = ''
     else:
         ship['grid'][grid_index(second_y_coord, second_x_coord), 4] = ''
+
+    # if we just finished the last step, we'll clear the colors and flip to 'all_done'
+    # bool to indicate that we're done. We will not change anything else.
+    if ship['current_step_num'] == ship['num_steps'] - 1:
+        ship['all_done'] = True
+        return current_grid()
 
     # update 'grid'
     # if we just moved a container, update the grid by swapping the info of those cells but not the coords
@@ -231,10 +237,6 @@ def next_grid():
         ship['park'] = 'red'
     else:
          ship['grid'][grid_index(new_second_y_coord, new_second_x_coord), 4] = 'red'
-
-    # if this is the last step, flip the boolean to indicate so
-    if ship['current_step_num'] == ship['num_steps'] - 1:
-        ship['last_step'] = True
 
     return current_grid()
 
