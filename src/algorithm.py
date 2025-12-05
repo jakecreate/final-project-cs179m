@@ -118,7 +118,7 @@ def optimal_path(node: object):
         actions.append(anchor.action)
 
         total_cost += anchor.cost
-        print(g_cost(anchor.parent, anchor.action))
+        # print(g_cost(anchor.parent, anchor.action))
         nodes.append(anchor)
         anchor = anchor.parent
 
@@ -138,10 +138,10 @@ def g_cost(node: object, action: np.ndarray):
 
     total_cost = 0
     if (heights[0] <= in_between_height) & (heights[1] <= in_between_height):
-        print('hill')
-        total_cost += np.sum(np.abs(heights - in_between_height)) + 1
+        # print('hill')
+        total_cost += np.sum(np.abs(heights - in_between_height) + 1)
     else:
-        print('norm')
+        # print('norm')
         total_cost += np.abs(np.diff(heights)).item()
 
     total_cost += np.abs(np.diff(widths)).item()
@@ -190,6 +190,7 @@ def a_star(X : np.ndarray):
     weights = np.sort(start.w[w_mask, 2])
 
     print(terminal_graphic(start))
+    print(' ')
 
     min_local = round(total_weight*0.10, 2)
     min_global = 0
@@ -210,9 +211,9 @@ def a_star(X : np.ndarray):
         if (node.score <= min_global) or (node.score <= min_local):
             if node == start:
                 return [], 0
-            print('g(n) =', node.gn,'h(n) =', node.hn, 'f(n) =', node.fn)
-            print('balance_score:', node.score)
-            print('action:', node.action, 'cost:', node.cost)
+            # print('g(n) =', node.gn,'h(n) =', node.hn, 'f(n) =', node.fn)
+            # print('balance_score:', node.score)
+            # print('action:', node.action, 'cost:', node.cost)
             print(terminal_graphic(node))
             return optimal_path(node)
 
@@ -231,14 +232,15 @@ def a_star(X : np.ndarray):
     
 if __name__ == '__main__':
     FOLDER_PATH = './data/'
-    FILE_NAME = 'ShipCase3.txt'
+    FILE_NAME = 'ShipCase4.txt'
     X = np.loadtxt(FOLDER_PATH+FILE_NAME, dtype=str, delimiter=',')
     X[:, 0] = np.char.strip(X[:, 0], "[")
     X[:, 1] = np.char.strip(X[:, 1], "]")
     X[:, 2] = np.char.strip(X[:, 2], "{} ")
     X[:, 3] = np.char.strip(X[:, 3], " ")
-    actions = a_star(X)
-    print(actions)
+    actions, total_cost = a_star(X)
+    print('actions:', actions)
+    print('total cost:', total_cost)
 
 
 
