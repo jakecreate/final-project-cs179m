@@ -53,6 +53,8 @@ def grid_index(y, x):
 def call_algorithm(filename):
     FOLDER_PATH = './data/'
     X = np.loadtxt(FOLDER_PATH+filename, dtype=str, delimiter=',')
+
+    # remove unnecessary characters
     X[:, 0] = np.char.strip(X[:, 0], "[")
     X[:, 1] = np.char.strip(X[:, 1], "]")
     X[:, 2] = np.char.strip(X[:, 2], "{} ")
@@ -62,6 +64,8 @@ def call_algorithm(filename):
     ship['grid'] = X
     # CALL THE ALGORITHM HERE
     # steps, total_time = algorithm(X)
+    
+    # example data
     total_time = 10
     steps = np.array([[9, 1, 1, 2],
                       [1, 2, 2, 3],
@@ -91,6 +95,7 @@ def unique_token():
         if token not in ships:
             return token
 
+# GET method that just redirects you to to start.html
 @app.route("/")
 def display_start():
     return render_template("start.html")
@@ -138,6 +143,7 @@ def upload():
     # if a file doesn't exist, redirect to the start page
     return redirect(url_for('display_start'))
 
+# GET method that just redirects you to to grid.html
 @app.route("/grid")
 def display_grid():
     return render_template("grid.html")
