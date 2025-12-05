@@ -177,8 +177,8 @@ def a_star(X : np.ndarray):
     w_mask = (start.label != 'UNUSED') & (start.label != 'NAN')
     weights = np.sort(start.w[w_mask, 2])
 
-    print('gn = 0', 'h(n) =', start.hn)
-    print(terminal_graphic(start))
+    # print('gn = 0', 'h(n) =', start.hn)
+    # print(terminal_graphic(start))
 
     min_local = round(total_weight*0.10, 2)
     min_global = np.diff(np.unique(weights)[0:2]).item() if X.shape[0] % 2 == 0 else weights[0]
@@ -191,10 +191,10 @@ def a_star(X : np.ndarray):
             continue
 
         if (node.score <= min_global) or (node.score <= min_local):
-            print('g(n) =', node.gn,'h(n) =', node.hn, 'f(n) =', node.fn)
-            print('balance_score:', node.score)
-            print('action:', node.action, 'cost:', node.cost)
-            print(terminal_graphic(node))
+            # print('g(n) =', node.gn,'h(n) =', node.hn, 'f(n) =', node.fn)
+            # print('balance_score:', node.score)
+            # print('action:', node.action, 'cost:', node.cost)
+            # print(terminal_graphic(node))
             return optimal_path(node)
 
         closed.add(node)
@@ -208,7 +208,7 @@ def a_star(X : np.ndarray):
                     open.put((child.fn, child))
                     open_cost[child] = child.fn
 
-    print('path not found.')
+    # print('path not found.')
     
 if __name__ == '__main__':
     FOLDER_PATH = './data/'
@@ -219,7 +219,7 @@ if __name__ == '__main__':
     X[:, 2] = np.char.strip(X[:, 2], "{} ")
     X[:, 3] = np.char.strip(X[:, 3], " ")
     actions = a_star(X)
+    print(a_star)
 
-    print(actions)
 
 
