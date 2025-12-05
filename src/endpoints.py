@@ -85,7 +85,7 @@ def call_algorithm(filename):
 
     index = grid_index(steps[0, 2], steps[0, 3])
     ship['grid'][index, 4] = 'red'
-    print(ships[session['session_id']])
+    # print(ships[session['session_id']])
 
 def unique_token():
     while True:
