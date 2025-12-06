@@ -9,6 +9,7 @@ from werkzeug.utils import secure_filename
 from flask import Flask, render_template, request, redirect, url_for, abort, session, jsonify
 import secrets
 import algorithm
+import fileinput
 
 app = Flask(__name__)
 app.config['data'] = 'data'
@@ -26,6 +27,7 @@ app.secret_key = secrets.token_hex()
 # 'move_container' = a boolean that is true if we move a container on this step and false if we're
 #                    just repositioning the claw to the next cell.
 # 'all_done' = a boolean that is true if we are currently on the last step and false otherwise.
+# 'file_name' = the name of the file that contains the outbound manifest.
 ships = {}
 PARK_Y_COORD = 9
 PARK_X_COORD = 1
@@ -49,7 +51,7 @@ def grid_index(y, x):
 
     X = get_ship()['grid']
     index = np.where((X[:, 0] == y_coord) & (X[:, 1] == x_coord))[0]
-    return index
+    return index[0]
 
 def call_algorithm(filename):
     FOLDER_PATH = './data/'
@@ -67,8 +69,9 @@ def call_algorithm(filename):
     steps, total_time = algorithm.a_star(X)
 
     # rename the file to "file_nameOUTBOUND.txt"
-    name = filename.split(".")[0]
-    os.rename(FOLDER_PATH+filename, FOLDER_PATH+name+"OUTBOUND.txt")
+    new_name = FOLDER_PATH+filename.split(".")[0]+"OUTBOUND.txt"
+    os.rename(FOLDER_PATH+filename, new_name)
+    ship['file_name'] = new_name
 
     # if there are no steps to take, that means the ship is already balanced
     already_balanced = len(steps) == 0
@@ -189,8 +192,6 @@ def next_grid():
     # if we're already on the last step, just return the json and do nothing else
     if ship['all_done']:
         return current_grid()
-
-    # update the manifest
     
     # append something to the log file
 
@@ -217,11 +218,38 @@ def next_grid():
         ship['all_done'] = True
         return current_grid()
 
-    # update 'grid'
-    # if we just moved a container, update the grid by swapping the info of those cells but not the coords
+    # if we moved a container this step, update 'grid' and the manifest
     if ship['move_container']:
         first_index = grid_index(first_y_coord, first_x_coord)
         second_index = grid_index(second_y_coord, second_x_coord)
+
+        # update the manifest
+        # get a list of the lines in the file
+        file = []
+        with open(ship['file_name'], "r") as r:
+            file = r.readlines()
+    
+        # rewrite the specific lines
+        def to_formatted_string(line):
+            return "[" + line[0] + "," + line[1] + "], {" + line[2] + "}, " + line[3] + "\n"
+        
+        # create a copy of the lines to be swapped
+        line1 = ship['grid'][first_index].copy()
+        line2 = ship['grid'][second_index].copy()
+
+        # swap the data but not the coordinates
+        line1[2], line2[2] = line2[2], line1[2]
+        line1[3], line2[3] = line2[3], line1[3]
+
+        # write the new lines to the list 'file'
+        file[first_index] = to_formatted_string(line1)
+        file[second_index] = to_formatted_string(line2)
+
+        # write it to the file
+        with open(ship['file_name'], "w") as w:
+            w.writelines(file)
+
+        # update the 'grid' in the same way
         ship['grid'][first_index, 2], ship['grid'][second_index, 2] = ship['grid'][second_index, 2], ship['grid'][first_index, 2]
         ship['grid'][first_index, 3], ship['grid'][second_index, 3] = ship['grid'][second_index, 3], ship['grid'][first_index, 3]
 
