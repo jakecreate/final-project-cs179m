@@ -1,15 +1,14 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import math
+# import math
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 import os
-import sys
+# import sys
 from werkzeug.utils import secure_filename
 from flask import Flask, render_template, request, redirect, url_for, abort, session, jsonify, send_file
 import secrets
 import algorithm
-import fileinput
 
 app = Flask(__name__)
 app.config['data'] = 'data'
@@ -32,6 +31,15 @@ app.secret_key = secrets.token_hex()
 ships = {}
 PARK_Y_COORD = 9
 PARK_X_COORD = 1
+LOG_FILE_NAME = ''
+
+def log_header():
+    time = datetime.now()
+    return str(time.month) + " " + str(time.day) + " " + str(time.year) + ": " + str(time.hour) + ":" + str(time.minute) + " "
+
+def log(str):
+    with open(LOG_FILE_NAME, "a") as file:
+        file.write(log_header() + str + "\n")
 
 # input: none
 # output: a reference to the dictionary holding all of the info for the current session.
@@ -63,6 +71,7 @@ def get_unique_file_name(folder_path, file_name):
         file_name = original + str(counter) + extension
     return file_name
 
+# formats the data, runs the algorithm, and fills the dictionary
 def call_algorithm(filename):
     FOLDER_PATH = './data/'
     X = np.loadtxt(FOLDER_PATH+filename, dtype=str, delimiter=',')
@@ -76,7 +85,29 @@ def call_algorithm(filename):
     ship = get_ship()
     ship['grid'] = X
 
+    # log the file opening
+    num_containers = len(np.where((X[:, 3] != 'NAN') & (X[:, 3] != 'UNUSED'))[0])
+    ending = ''
+    if num_containers != 1:
+        ending = " containers on the ship."
+    else:
+        ending = " container on the ship."
+    log("Manifest " + filename + " is opened, there are " + str(num_containers) + ending)
+
     steps, total_time = algorithm.a_star(X)
+
+    # log that we found a solution
+    moves = ''
+    if len(steps) != 1:
+        moves = " moves"
+    else:
+        moves = " move"
+    minutes = ''
+    if total_time != 1:
+        minutes = " minutes"
+    else:
+        minutes = " minute"
+    log("Balance solution found, it will require " + str(len(steps)) + moves + "/" + str(total_time) + minutes + ".")
 
     # rename the file to "file_nameOUTBOUND.txt"
     output_name = filename.split(".")[0]+"OUTBOUND.txt"
@@ -120,8 +151,25 @@ def unique_token():
             return token
 
 # GET method that just redirects you to to start.html
+# If it is the first time the window was opened, start a log file.
 @app.route("/")
 def display_start():
+    global LOG_FILE_NAME
+    # if we haven't given it a 'first_log' entry yet
+    # this means it's the first time on the page for this session
+    if 'first_log' not in session:
+        time = datetime.now()
+        file_name = "KeoghsPort" + str(time.month) + "_" + str(time.day) + "_" + str(time.year) + "_" + str(time.hour) + str(time.minute) + ".txt"
+        path = './logs/'
+        LOG_FILE_NAME = path + file_name
+
+        # if a file already exists with that name, delete the old file
+        if os.path.exists(LOG_FILE_NAME):
+            os.remove(LOG_FILE_NAME)
+
+        with open(LOG_FILE_NAME, "a") as file:
+            file.write(log_header() + "Window was opened.\n")
+        session['first_log'] = False
     return render_template("start.html")
 
 # POST request that takes in a file in the body of the request.
@@ -202,8 +250,6 @@ def next_grid():
     # if we're already on the last step, just return the json and do nothing else
     if ship['all_done']:
         return current_grid()
-    
-    # append something to the log file
 
     # clear the color of the first cell
     curr_step = ship['current_step_num']
@@ -263,6 +309,15 @@ def next_grid():
         ship['grid'][first_index, 2], ship['grid'][second_index, 2] = ship['grid'][second_index, 2], ship['grid'][first_index, 2]
         ship['grid'][first_index, 3], ship['grid'][second_index, 3] = ship['grid'][second_index, 3], ship['grid'][first_index, 3]
 
+        # log that we moved a container
+        def to_string(num):
+            output = str(num)
+            if num < 10:
+                output = '0' + output
+            return output
+        coords = ship['steps'][curr_step]
+        log("[" + to_string(coords[0]) + "," + to_string(coords[1]) + "] was moved to [" + to_string(coords[2]) + "," + to_string(coords[3]) + "]")
+
     # update 'current_step_num'
     ship['current_step_num'] += 1
 
@@ -293,10 +348,36 @@ def next_grid():
 @app.route('/download_manifest')
 def download_manifest():
     ship = get_ship()
+
+    # log the output
+    log("Finished a Cycle. Manifest " + ship['output_name'] + " was written to desktop, and a reminder pop-up to operator to send file was displayed.")
+    
+    # output the file
     current_directory = os.path.dirname(os.path.abspath(__file__))
     path = os.path.join(current_directory, '..', 'data', ship['file_name'].split("/")[-1])
     full_path = os.path.normpath(path)
     return send_file(full_path, as_attachment = True, download_name = ship['output_name'])
+
+# input: what the user wants to log
+# output: redirects back to the display grid
+@app.route('/log', methods = ['POST'])
+def log_message():
+    message = request.form.get('message')
+    log(message)
+    return redirect(url_for('display_grid'))
+
+# input: none
+# output: the log files will be downloaded into the user's downloads folder
+@app.route('/close')
+def close():
+    log("Window was closed.")
+
+    ship = get_ship()
+    current_directory = os.path.dirname(os.path.abspath(__file__))
+    plain_name = LOG_FILE_NAME.split("/")[-1]
+    path = os.path.join(current_directory, '..', 'logs', plain_name)
+    full_path = os.path.normpath(path)
+    return send_file(full_path, as_attachment = True, download_name = plain_name)
 
 if __name__ == '__main__':
     app.run(debug=True)
