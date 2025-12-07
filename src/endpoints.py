@@ -359,12 +359,12 @@ def download_manifest():
     return send_file(full_path, as_attachment = True, download_name = ship['output_name'])
 
 # input: what the user wants to log
-# output: redirects back to the display grid
+# output: redirects back to the page you were already one
 @app.route('/log', methods = ['POST'])
 def log_message():
     message = request.form.get('message')
     log(message)
-    return redirect(url_for('display_grid'))
+    return redirect(request.referrer or url_for('display_start'))
 
 # input: none
 # output: the log files will be downloaded into the user's downloads folder
