@@ -14,14 +14,63 @@
         #ship-grid::before {
             content: '';
             position: absolute;
-            left: 411.5px;
-            top: 55px;
-            bottom: 18px;
+            left: 449px;
+            top: 60px;
+            bottom: 50px;
             width: 4px;
             background-color: #e74c3c;
             z-index: 10;
             pointer-events: none;
         }
+        .grid-with-indices {
+            display: flex;
+            gap: 8px;
+            align-items: flex-start;
+        }
+        
+        .row-indices {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            padding-top: 15px;
+            padding-bottom: 15px;
+        }
+        
+        .row-index {
+            height: 60px;
+            width: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ecf0f1;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
+        .grid-and-cols {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .col-indices {
+            display: flex;
+            gap: 4px;
+            padding-left: 15px;
+            padding-right: 15px;
+        }
+        
+        .col-index {
+            width: 60px;
+            height: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #ecf0f1;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        
         .cell {
             border: 2px solid #34495e;
             border-radius: 4px;
