@@ -1,6 +1,7 @@
 import numpy as np
 from queue import PriorityQueue
-
+import time
+import matplotlib.pyplot as plt
 def imbalance_score(w):
     mask = w[:, 1] <= 6
     return abs(np.sum(w[mask, 2]) - np.sum(w[~mask, 2]))    
@@ -12,7 +13,6 @@ def heuristic(target_weight: int, node: object):
     '''
     w_mask = (node.label != 'UNUSED') & (node.label != 'NAN')
     p_mask = node.w[:, 1] <= 6
-
     # weights of each side P & S
     p_weights = node.w[p_mask & w_mask, 2]
     s_weights = node.w[~p_mask & w_mask, 2]
@@ -103,6 +103,50 @@ def neighbors(node: object):
         
     return neighbors_list # consider adding top limit 
 
+
+# return possible neighbors of node
+def neighbors_ucs(node: object):
+    is_crate = (node.label != 'UNUSED') & (node.label != 'NAN')       
+    is_avail = (node.label != 'NAN') & ~is_crate
+
+    idx_top_avail_list = []
+    idx_top_crates_list = []
+    # in each col
+    for col in range(1, 13):
+        is_col = node.w[:, 1] == col
+        idx_crates = (is_col & is_crate).nonzero()[0] # idx of each crate
+        idx_top_avail = (is_col & is_avail).nonzero()[0]# idx of available spot
+        
+        if idx_crates.size != 0:
+            idx_top_crates_list.append(idx_crates[-1])
+        if idx_top_avail.size !=0:
+            idx_top_avail_list.append(idx_top_avail[0])
+        
+    
+    top_avail = np.vstack(idx_top_avail_list).ravel()
+    top_crates = np.vstack(idx_top_crates_list).ravel()
+
+    neighbors_list = []
+    for idx_crate in top_crates:
+        crate = node.w[idx_crate]
+        col_num = crate[1]
+        
+        for idx_spot in top_avail: 
+            spot = node.w[idx_spot] 
+            if spot[1] == crate[1]: continue
+            # create attributes
+            action = np.array([crate[0], crate[1], spot[0], spot[1]])
+            w = node.w.copy()
+            label = node.label.copy()
+            # swap
+            w[[idx_crate, idx_spot], 2] = w[[idx_spot, idx_crate], 2]
+            label[[idx_crate, idx_spot]] = label[[idx_spot, idx_crate]]
+           
+            neighbors_list.append(NodeUCS(w, label, action, node))
+        
+    return neighbors_list # consider adding top limit 
+
+
 def optimal_path(node: object):
     anchor = node
     actions = []
@@ -174,8 +218,32 @@ class Node:
         return hash((self.w.tobytes(), self.label.tobytes()))
 
 
+class NodeUCS:
+    def __init__(self, w: np.ndarray, label: np.ndarray, action: np.ndarray, parent: object):
+        self.w = w # 96 by 3 where cols= y, x, weight --> represent 8 x 12 grid
+        self.label = label # vector length 96 --> represent each label on 8 x12 grid
+        self.action = action # vector of [y1, x1, y2, x2] (the action it took to get to the node)
+        self.parent = parent # the node in which it came from 
+        self.cost = g_cost(parent, action) if action is not None else 0 # fix this later
+        self.gn = parent.gn + self.cost if parent is not None else self.cost
+        self.score = imbalance_score(w)
+
+
+    def __eq__(self, other: object):
+        return np.array_equal(self.w, other.w) and np.array_equal(self.label, other.label)
+
+    def __lt__(self, other):
+        return self.score <= other.score
+    
+    def __hash__(self):
+        self.w.flags.writeable = False
+        self.label.flags.writeable = False
+        return hash((self.w.tobytes(), self.label.tobytes()))
+
+
+
 def a_star(X : np.ndarray):
-    # ds & init
+    # init_time = time.time()
     open = PriorityQueue()
     closed = set()
 
@@ -183,7 +251,6 @@ def a_star(X : np.ndarray):
     open.put((0, start))
     open_cost = {start: 0}
 
-    # set goal
     total_weight = np.sum(start.w[:, 2])
     target_weight = total_weight/2
     w_mask = (start.label != 'UNUSED') & (start.label != 'NAN')
@@ -200,22 +267,23 @@ def a_star(X : np.ndarray):
         else: 
             min_global = weights[0]
 
-    # begin
+    # performance_list = []
     while not open.empty():
 
         fn, node = open.get()
                 
         if node in closed:
             continue
+        # performance_list.append([time.time() - init_time, node.gn])
 
         if (node.score <= min_global) or (node.score <= min_local):
             if node == start:
                 return [], 0
-            # print('g(n) =', node.gn,'h(n) =', node.hn, 'f(n) =', node.fn)
-            # print('balance_score:', node.score)
-            # print('action:', node.action, 'cost:', node.cost)
+            print('g(n) =', node.gn,'h(n) =', node.hn, 'f(n) =', node.fn)
+            print('balance_score:', node.score)
             print(terminal_graphic(node))
-            return optimal_path(node)
+    
+            return optimal_path(node) # performance_list
 
         closed.add(node)
 
@@ -228,19 +296,88 @@ def a_star(X : np.ndarray):
                     open.put((child.fn, child))
                     open_cost[child] = child.fn
 
-    # print('path not found.')
+def ucs(X : np.ndarray):
+    # init_time = time.time()
+
+    open = PriorityQueue()
+    closed = set()
+
+    start = NodeUCS(np.int64(X[:, 0:3]), X[:, 3], None, None) 
+    open.put((0, start))
+    open_cost = {start: 0}
+
+    total_weight = np.sum(start.w[:, 2])
+    target_weight = total_weight/2
+    w_mask = (start.label != 'UNUSED') & (start.label != 'NAN')
+    weights = np.sort(start.w[w_mask, 2])
+
+    print(terminal_graphic(start))
+    print(' ')
+
+    min_local = round(total_weight*0.10, 2)
+    min_global = 0
+    if weights.size != 0:
+        if X.shape[0] % 2 == 0:
+            min_global = np.diff(np.unique(weights)[0:2]).item() 
+        else: 
+            min_global = weights[0]
+
+    # performance_list = []
+    while not open.empty():
+
+        fn, node = open.get()
+                
+        if node in closed:
+            continue
+
+        # performance_list.append([time.time() - init_time, node.gn])
+
+        if (node.score <= min_global) or (node.score <= min_local):
+            if node == start:
+                return [], 0
+            print('g(n) =', node.gn)
+            print('balance_score:', node.score)
+            print(terminal_graphic(node))
+    
+            return optimal_path(node) # performance_list
+
+        closed.add(node)
+
+        for child in neighbors_ucs(node):
+            if child not in open_cost:
+                open.put((child.gn, child))
+                open_cost[child] = child.gn
+            else:
+                if child.gn < open_cost[child]:
+                    open.put((child.gn, child))
+                    open_cost[child] = child.gn
+
     
 if __name__ == '__main__':
     FOLDER_PATH = './data/'
-    FILE_NAME = 'ShipCase4.txt'
+    FILE_NAME = 'LectureShip.txt'
     X = np.loadtxt(FOLDER_PATH+FILE_NAME, dtype=str, delimiter=',')
     X[:, 0] = np.char.strip(X[:, 0], "[")
     X[:, 1] = np.char.strip(X[:, 1], "]")
     X[:, 2] = np.char.strip(X[:, 2], "{} ")
     X[:, 3] = np.char.strip(X[:, 3], " ")
-    actions, total_cost = a_star(X)
+
+    (actions, total_cost), performance = a_star(X)
+    # actions, total_cost = a_star(X)
     print('actions:', actions)
     print('total cost:', total_cost)
+    as_data = np.vstack(performance)
 
-
-
+    (actions_ucs, total_cost_ucs), performance_ucs = ucs(X)
+    # actions_ucs, total_cost_ucs = ucs(X)
+    print('actions_ucs:', actions_ucs)
+    print('total cost:_ucs', total_cost_ucs)
+    ucs_data = np.vstack(performance_ucs)
+    
+    # fig, ax = plt.subplots(figsize=(7, 5), dpi=500)
+    # ax.plot(as_data[:, 0], as_data[:, 1], color='red', solid_capstyle='round', linewidth=3, label='A*')
+    # ax.plot(ucs_data[:, 0], ucs_data[:, 1], color='blue', solid_capstyle='round', linewidth=1, label='UCS')
+    # ax.set_xlabel('Algorithm Duration (seconds)')
+    # ax.set_ylabel('Total Cost (minutes)')
+    # ax.legend()
+    # fig.savefig('./data/_test.svg', format='svg', dpi=500)
