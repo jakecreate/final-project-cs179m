@@ -86,7 +86,8 @@ function createCell(cellData, y, x) {
         div.classList.add('unused');
     } else {
         div.classList.add('container');
-        div.innerHTML = `<span>${name.substring(0, 5)}</span><small>${weight}</small>`;
+        const displayWeight = parseInt(weight, 10) || weight;
+        div.innerHTML = `<span>${name.substring(0, 5)}</span><small>${displayWeight}</small>`;
     }
 
     if (color === 'red') {
