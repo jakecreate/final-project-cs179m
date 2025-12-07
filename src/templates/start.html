@@ -1,12 +1,119 @@
-<html> 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Keogh's Port - Upload Manifest</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gradient-to-br from-gray-800 to-gray-900 min-h-screen flex items-center justify-center p-4">
+    <div class="w-full max-w-2xl">
+        <div class="bg-gray-800 rounded-2xl shadow-2xl p-8 border border-gray-700">
+            <!-- Header -->
+            <div class="text-center mb-8">
+                <h1 class="text-4xl font-bold text-green-400 mb-2 tracking-wide">
+                    KEOGH'S PORT
+                </h1>
+                <p class="text-gray-400 text-lg">Balancing System</p>
+            </div>
 
-    <head> 
-        <script type = "text/javascript"
-            src = "{{ url_for('static', filename = 'app.js') }}" ></script> 
-    </head> 
-        
-    <body> 
-        <input type = "button" onclick = "sayHello()" value = "Say Hello" /> 
-    </body> 
-    
+            <!-- Upload Section -->
+            <div class="space-y-6">
+                <h2 class="text-2xl font-semibold text-white text-center">
+                    Upload Manifest File
+                </h2>
+                
+                <form id="uploadForm" action="/" method="POST" enctype="multipart/form-data" class="space-y-6">
+                    <!-- File Input -->
+                    <div class="flex flex-col items-center">
+                        <label for="fileInput" class="group relative cursor-pointer">
+                            <div class="flex items-center space-x-3 bg-blue-600 hover:bg-blue-700 transition-all duration-300 px-8 py-4 rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105">
+                                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                                </svg>
+                                <span class="text-white font-semibold text-lg">Choose File (.txt)</span>
+                            </div>
+                        </label>
+                        <input type="file" id="fileInput" name="file" accept=".txt" required class="hidden">
+                        
+                        <!-- File Name Display -->
+                        <div id="fileName" class="mt-4 text-gray-300 min-h-6 text-center">
+                            No file selected
+                        </div>
+                        
+                        <!-- Error Message -->
+                        <div id="errorMsg" class="text-red-400 mt-2 text-center min-h-6"></div>
+                    </div>
+
+                    <!-- Submit Button -->
+                    <div class="flex justify-center">
+                        <button 
+                            type="submit" 
+                            id="submitBtn" 
+                            disabled 
+                            class="px-10 py-4 bg-green-500 hover:bg-green-600 disabled:bg-gray-600 disabled:cursor-not-allowed text-white font-bold text-lg rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:transform-none disabled:hover:scale-100"
+                        >
+                            Upload & Start Balancing
+                        </button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Status Bar -->
+            <div class="mt-8 pt-6 border-t border-gray-700">
+                <div class="flex items-center justify-center space-x-2 text-gray-400">
+                    <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <span class="text-sm">System Ready</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Info Card -->
+        <div class="mt-6 bg-gray-800/50 backdrop-blur rounded-lg p-4 border border-gray-700">
+            <p class="text-gray-400 text-sm text-center">
+                Upload a manifest file to begin the container balancing process
+            </p>
+        </div>
+    </div>
+
+    <script>
+        const fileInput = document.getElementById('fileInput');
+        const fileName = document.getElementById('fileName');
+        const submitBtn = document.getElementById('submitBtn');
+        const errorMsg = document.getElementById('errorMsg');
+        const uploadForm = document.getElementById('uploadForm');
+
+        fileInput.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                const file = this.files[0];
+                if (!file.name.endsWith('.txt')) {
+                    errorMsg.textContent = 'Error: Please select a .txt file';
+                    fileName.textContent = 'No file selected';
+                    submitBtn.disabled = true;
+                    return;
+                }
+                errorMsg.textContent = '';
+                fileName.innerHTML = `
+                    <div class="flex items-center justify-center space-x-2">
+                        <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+                        </svg>
+                        <span class="text-green-400 font-semibold">${file.name}</span>
+                    </div>
+                `;
+                submitBtn.disabled = false;
+            } else {
+                fileName.textContent = 'No file selected';
+                submitBtn.disabled = true;
+            }
+        });
+
+        uploadForm.addEventListener('submit', function(e) {
+            if (!fileInput.files || !fileInput.files[0]) {
+                e.preventDefault();
+                errorMsg.textContent = 'Error: Please select a file first';
+            }
+        });
+    </script>
+</body>
 </html>

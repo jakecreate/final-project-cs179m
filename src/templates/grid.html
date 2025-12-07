@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ship Balance Grid</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        'ship-bg': '#2c3e50',
+                        'ship-container': '#3498db',
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="bg-gradient-to-br from-gray-800 to-gray-900 min-h-screen text-white p-6 overflow-x-auto">
+    <!-- Header -->
+    <div class="text-center mb-6">
+        <h1 class="text-4xl md:text-5xl font-bold text-green-400 tracking-wide mb-3">
+            SHIP CONTAINER BALANCING
+        </h1>
+        
+        <div id="status-text" class="text-xl md:text-2xl text-blue-400">
+            Loading...
+        </div>
+    </div>
+
+    <!-- Main Grid Layout -->
+    <div class="max-w-[1600px] mx-auto mb-6">
+        <div class="flex flex-col xl:flex-row gap-6 justify-center items-start">
+            <!-- Main Ship Grid (8 rows x 12 columns) -->
+            <div class="bg-gray-800/60 backdrop-blur rounded-2xl p-4 border border-gray-700 shadow-2xl">
+                <h2 class="text-xl font-semibold text-white mb-3 text-center">
+                    Ship Grid
+                </h2>
+                <div id="ship-grid" class="grid-container"></div>
+            </div>
+
+            <div class="bg-gray-800/60 backdrop-blur rounded-2xl p-4 border border-gray-700 shadow-2xl">
+                <h2 class="text-xl font-semibold text-white mb-3 text-center">
+                    Buffer/Park Zone
+                </h2>
+                <div id="buffer-grid" class="grid-container buffer-container"></div>
+            </div>
+
+            <form action="/log" method="POST" class="flex flex-col md:flex-row gap-3">
+                <input 
+                    type="text" 
+                    name="message" 
+                    placeholder="Enter log message..." 
+                    required
+                    class="flex-1 px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                <button 
+                    type="submit"
+                    class="px-6 py-3 bg-yellow-500 hover:bg-yellow-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center justify-center gap-2"
+                >
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                    </svg>
+                    Add to Log
+                </button>
+                </form>
+            
+        </div>
+    </div>
+
+    <!-- Control Buttons -->
+    <div class="max-w-4xl mx-auto text-center mb-6">
+        <p class="text-gray-300 mb-4 text-base md:text-lg">
+            Press <span class="font-bold text-green-400">ENTER</span> to advance to next step
+        </p>
+        
+        <div class="flex flex-wrap justify-center gap-3">
+            <button 
+                onclick="nextStep()" 
+                class="group relative px-6 py-3 bg-green-500 hover:bg-green-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center gap-2"
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path>
+                </svg>
+                Next Step (Enter)
+            </button>
+            
+            <button 
+                onclick="downloadManifest()" 
+                class="group relative px-6 py-3 bg-blue-500 hover:bg-blue-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center gap-2"
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                </svg>
+                Download Manifest
+            </button>
+            
+            <button 
+                onclick="closeApp()" 
+                class="group relative px-6 py-3 bg-red-500 hover:bg-red-600 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 flex items-center gap-2"
+            >
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+                Close & Download Log
+            </button>
+        </div>
+    </div>
+
+    <!-- Legend -->
+    <div class="max-w-5xl mx-auto bg-gray-800/60 backdrop-blur rounded-2xl p-6 border border-gray-700 shadow-2xl">
+        <h3 class="text-xl font-semibold text-white mb-4 text-center">Legend</h3>
+        
+        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            <!-- Container -->
+            <div class="flex flex-col items-center gap-2 p-3 bg-gray-700/50 rounded-lg hover:bg-gray-700 transition-colors">
+                <div class="w-10 h-10 bg-blue-500 rounded-md shadow-lg"></div>
+                <span class="text-xs font-medium text-gray-300">Container</span>
+            </div>
+            
+            <!-- Unused -->
+            <div class="flex flex-col items-center gap-2 p-3 bg-gray-700/50 rounded-lg hover:bg-gray-700 transition-colors">
+                <div class="w-10 h-10 bg-gray-400 rounded-md shadow-lg"></div>
+                <span class="text-xs font-medium text-gray-300">Unused</span>
+            </div>
+            
+            <!-- NAN (Blocked) -->
+            <div class="flex flex-col items-center gap-2 p-3 bg-gray-700/50 rounded-lg hover:bg-gray-700 transition-colors">
+                <div class="w-10 h-10 bg-gray-900 rounded-md shadow-lg border border-gray-600"></div>
+                <span class="text-xs font-medium text-gray-300">NAN (Blocked)</span>
+            </div>
+            
+            <!-- Source (Green) -->
+            <div class="flex flex-col items-center gap-2 p-3 bg-gray-700/50 rounded-lg hover:bg-gray-700 transition-colors">
+                <div class="w-10 h-10 bg-green-100 rounded-md shadow-lg border-4 border-green-500"></div>
+                <span class="text-xs font-medium text-gray-300">Source (Green)</span>
+            </div>
+            
+            <!-- Destination (Red) -->
+            <div class="flex flex-col items-center gap-2 p-3 bg-gray-700/50 rounded-lg hover:bg-gray-700 transition-colors">
+                <div class="w-10 h-10 bg-red-100 rounded-md shadow-lg border-4 border-red-500"></div>
+                <span class="text-xs font-medium text-gray-300">Destination (Red)</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer Status -->
+    <div class="max-w-4xl mx-auto mt-6 text-center">
+        <div class="flex items-center justify-center gap-2 text-gray-400">
+            <div class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+            <span class="text-sm">System Active</span>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
