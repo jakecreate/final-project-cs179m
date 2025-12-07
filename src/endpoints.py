@@ -204,6 +204,7 @@ def upload():
         
         # upload the file to the 'data' folder
         uploaded_file.save(os.path.join(app.config['data'], filename))
+        uploaded_file.close()
 
         # Flask manages an array session[] for us but it lives in the browser
         # cookies so the amount of storage isn't enough for our large grid.
