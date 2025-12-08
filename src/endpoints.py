@@ -249,7 +249,8 @@ def current_grid():
                    current_step_num=ship['current_step_num'],
                    all_done=ship['all_done'],
                    total_time=int(ship['total_time']),
-                   costs=ship['costs'].tolist())
+                   costs=ship['costs'].tolist(),
+                   file_name=ship['output_name'])
                    
 
 # POST method to call when the user presses the enter key. returns the next grid step.
