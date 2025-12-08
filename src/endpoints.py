@@ -29,6 +29,7 @@ app.secret_key = secrets.token_hex()
 # 'all_done' = a boolean that is true if we are currently on the last step and false otherwise.
 # 'file_name' = the full path of the file that contains the outbound manifest.
 # 'output_name' = the name that the file should be when we output it.
+# 'total_time' = the total time all of the steps will take not including the steps to and from the park cell.
 ships = {}
 PARK_Y_COORD = 9
 PARK_X_COORD = 1
@@ -244,7 +245,8 @@ def current_grid():
                    steps=temp_steps,
                    num_steps=ship['num_steps'],
                    current_step_num=ship['current_step_num'],
-                   all_done=ship['all_done'])
+                   all_done=ship['all_done'],
+                   total_time=ship['total_time'].item())
 
 # POST method to call when the user presses the enter key. returns the next grid step.
 # Input: none
