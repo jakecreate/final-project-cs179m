@@ -115,17 +115,16 @@ def optimal_path(node: object):
             prev_action = prev_node.action
             crane_action = np.array([anchor.action[2], anchor.action[3], prev_action[0], prev_action[1]])
             actions.append(crane_action)
-            action_cost = g_cost(prev_node, crane_action)
-            total_cost += action_cost
-            action_list.append(action_cost)
-        actions.append(anchor.action)
+            total_cost += g_cost(prev_node, crane_action)
 
+        actions.append(anchor.action)
+        action_list.append(achor.cost)
         total_cost += anchor.cost
-        # print(g_cost(anchor.parent, anchor.action))
+
         nodes.append(anchor)
         anchor = anchor.parent
 
-    return np.vstack(actions)[::-1], total_cost, np.vstack(action_list)[::-1]
+    return np.vstack(actions)[::-1], total_cost, action_list[::-1]
 
 def g_cost(node: object, action: np.ndarray):
     objects = node.label != 'UNUSED'
