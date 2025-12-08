@@ -246,7 +246,7 @@ def current_grid():
                    num_steps=ship['num_steps'],
                    current_step_num=ship['current_step_num'],
                    all_done=ship['all_done'],
-                   total_time=ship['total_time'].item())
+                   total_time=int(ship['total_time']))
 
 # POST method to call when the user presses the enter key. returns the next grid step.
 # Input: none
