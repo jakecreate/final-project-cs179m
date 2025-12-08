@@ -1,3 +1,4 @@
+let stepHistory = [];
 
 document.addEventListener('DOMContentLoaded', () => {
     fetchGridState();
@@ -13,6 +14,11 @@ async function fetchGridState() {
         const response = await fetch('/api/current_grid');
         const data = await response.json();
         renderSystem(data);
+        rebuildStepHistory(data);
+        const timeElement = document.getElementById('time-display');
+        timeElement.innerText = data.total_time;
+        const steps = document.getElementById('steps-display');
+        steps.innerText = data.num_steps;
     } catch (error) {
         console.error("Error loading grid:", error);
     }
@@ -23,29 +29,138 @@ async function nextStep() {
         const response = await fetch('/api/next_grid', { method: 'POST' });
         const data = await response.json();
         
-        if (data.all_done) {
-            document.getElementById('status-text').innerText = "OPERATION COMPLETE";
-            document.getElementById('status-text').style.color = "#2ecc71";
-        } else {
-            renderSystem(data);
-        }
+        addStepToHistory(data);
+        
+        renderSystem(data);
     } catch (error) {
         console.error("Error advancing step:", error);
     }
 }
 
+function addStepToHistory(data) {
+    if (data.steps.length === 0) {
+        return;
+    }
+    let currentStep = data.current_step_num;
+    if (data.all_done) {
+        currentStep = data.steps.length - 1; 
+    }
+
+    if (currentStep >= 0 && currentStep < data.steps.length) {
+        const step = data.steps[currentStep];
+        const fromY = String(step[0]).padStart(2, '0');
+        const fromX = String(step[1]).padStart(2, '0');
+        const toY = String(step[2]).padStart(2, '0');
+        const toX = String(step[3]).padStart(2, '0');
+        
+        const fromLabel = (fromY === '09' && fromX === '01') ? 'park' : `[${fromY},${fromX}]`;
+        const toLabel = (toY === '09' && toX === '01') ? 'park' : `[${toY},${toX}]`;
+        
+        // Determine whether this step is a container move (odd indices)
+        const isMove = currentStep % 2 === 1;
+
+        // Show each backend step as its own numbered move
+        const stepNum = currentStep + 1;
+        const totalSteps = data.num_steps;
+
+        // Formatting with Colors for Dark Mode
+        const fromSpan = `<span style="color: #2ecc71; font-weight: bold;">${fromLabel}</span>`;
+        const toSpan = `<span style="color: #e74c3c; font-weight: bold;">${toLabel}</span>`;
+
+        let message = '';
+        if (isMove) {
+            message = `${stepNum} of ${totalSteps}: Move from ${fromSpan} to ${toSpan}`;
+        } else {
+            // crane repositioning / move of the crane itself
+            message = `${stepNum} of ${totalSteps}: Move crane from ${fromSpan} to ${toSpan}`;
+        }
+
+        if (stepHistory.length === 0 || stepHistory[stepHistory.length - 1] !== message) {
+            stepHistory.push(message);
+            renderStepLog();
+        }
+    }
+}
+
+function renderStepLog() {
+    const container = document.getElementById('step-log');
+    if (!container) return;
+
+    container.innerHTML = '';
+
+    if (stepHistory.length === 0) {
+        container.innerHTML = `<div class="text-gray-400 text-center text-sm py-4">No steps taken yet. Press "Next Step" to begin.</div>`;
+        return;
+    }
+
+    stepHistory.forEach((msg) => {
+        const item = document.createElement('div');
+        item.className = 'step-log-item';
+        item.innerHTML = msg;
+        container.appendChild(item);
+    });
+
+    // keep the most recent entry visible
+    container.scrollTop = container.scrollHeight;
+}
+function rebuildStepHistory(data) {
+    stepHistory = [];
+    if (!data || !data.steps || data.steps.length === 0) {
+        renderStepLog();
+        return;
+    }
+    let completedCount = data.current_step_num;
+    if (data.all_done) {
+        completedCount = data.steps.length;
+    }
+
+    for (let idx = 0; idx < completedCount; idx++) {
+        const step = data.steps[idx];
+        const fromY = String(step[0]).padStart(2, '0');
+        const fromX = String(step[1]).padStart(2, '0');
+        const toY = String(step[2]).padStart(2, '0');
+        const toX = String(step[3]).padStart(2, '0');
+        const fromLabel = (fromY === '09' && fromX === '01') ? 'park' : `[${fromY},${fromX}]`;
+        const toLabel = (toY === '09' && toX === '01') ? 'park' : `[${toY},${toX}]`;
+
+        const isMove = idx % 2 === 1;
+        const stepNum = idx + 1;
+        const totalSteps = data.num_steps;
+        const fromSpan = `<span style="color: #2ecc71; font-weight: bold;">${fromLabel}</span>`;
+        const toSpan = `<span style="color: #e74c3c; font-weight: bold;">${toLabel}</span>`;
+
+        let message = '';
+        if (isMove) {
+            message = `${stepNum} of ${totalSteps}: Move from ${fromSpan} to ${toSpan}`;
+        } else {
+            message = `${stepNum} of ${totalSteps}: Move crane from ${fromSpan} to ${toSpan}`;
+        }
+
+        if (stepHistory.length === 0 || stepHistory[stepHistory.length - 1] !== message) {
+            stepHistory.push(message);
+        }
+    }
+
+    renderStepLog();
+}
 function renderSystem(data) {
     const statusText = document.getElementById('status-text');
-    statusText.innerText = `Step ${data.current_step_num} / ${data.num_steps}`;
+    if (data.all_done) {
+        statusText.innerText = "OPERATION DONE";
+        statusText.style.color = "#2ecc71";
+    } else {
+        statusText.innerText = `Step ${data.current_step_num} / ${data.num_steps}`;
+        statusText.style.color = "";
+    }
+    
     const gridMap = {};
-    // 2. Map grid data for easy access
     data.grid.forEach(row => {
         const key = `${parseInt(row[0])},${parseInt(row[1])}`;
         gridMap[key] = row;
     });
-    // 3. Render Ship Grid
+    
     const shipContainer = document.getElementById('ship-grid');
-    shipContainer.innerHTML = ''; // Clear previous
+    shipContainer.innerHTML = '';
     for (let y = 8; y >= 1; y--) {
         for (let x = 1; x <= 12; x++) {
             const cellData = gridMap[`${y},${x}`];
