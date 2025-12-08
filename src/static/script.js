@@ -12,9 +12,9 @@ document.addEventListener('DOMContentLoaded', () => {
 async function fetchGridState() {
     try {
         const response = await fetch('/api/current_grid');
-        const data = await response.json();
+        const data = await response.json(); //data is the main way to get all the info about the grid
         renderSystem(data);
-        rebuildStepHistory(data);
+        StepHistory(data);
         const timeElement = document.getElementById('time-display');
         timeElement.innerText = data.total_time;
         const steps = document.getElementById('steps-display');
@@ -29,8 +29,7 @@ async function nextStep() {
         const response = await fetch('/api/next_grid', { method: 'POST' });
         const data = await response.json();
         
-        rebuildStepHistory(data);
-        
+        StepHistory(data);
         renderSystem(data);
     } catch (error) {
         console.error("Error advancing step:", error);
@@ -59,19 +58,24 @@ function renderStepLog() {
 
     container.scrollTop = container.scrollHeight;
 }
-function rebuildStepHistory(data) {
+function StepHistory(data) {
     stepHistory = [];
     if (!data || !data.steps || data.steps.length === 0) {
         renderStepLog();
         return;
     }
-    let completedCount = data.current_step_num;
+    let completedCount = data.current_step_num + 1;
+    if(completedCount > data.steps.length) {
+        completedCount = data.steps.length;
+    }
     if (data.all_done) {
         completedCount = data.steps.length;
     }
 
     for (let idx = 0; idx < completedCount; idx++) {
         const step = data.steps[idx];
+        //const costs = data.costs[idx];
+        //const time = String(costs).padStart(2, '0');
         const fromY = String(step[0]).padStart(2, '0');
         const fromX = String(step[1]).padStart(2, '0');
         const toY = String(step[2]).padStart(2, '0');
@@ -79,7 +83,7 @@ function rebuildStepHistory(data) {
         const fromLabel = (fromY === '09' && fromX === '01') ? 'park' : `[${fromY},${fromX}]`;
         const toLabel = (toY === '09' && toX === '01') ? 'park' : `[${toY},${toX}]`;
 
-        const isMove = idx % 2 === 1;
+        const isMove = idx % 2 === 1; //moving a container are odd
         const stepNum = idx + 1;
         const totalSteps = data.num_steps;
         const fromSpan = `<span style="color: #2ecc71; font-weight: bold;">${fromLabel}</span>`;
@@ -87,9 +91,11 @@ function rebuildStepHistory(data) {
 
         let message = '';
         if (isMove) {
-            message = `${stepNum} of ${totalSteps}: Move from ${fromSpan} to ${toSpan}`;
+             message = `${stepNum} of ${totalSteps}: Move from ${fromSpan} to ${toSpan}`;
+            //message = `${stepNum} of ${totalSteps}: Move from ${fromSpan} to ${toSpan} and it takes, ${time} minutes`;
         } else {
             message = `${stepNum} of ${totalSteps}: Move crane from ${fromSpan} to ${toSpan}`;
+            //message = `${stepNum} of ${totalSteps}: Move crane from ${fromSpan} to ${toSpan} and it takes, ${time} minutes`;
         }
 
         if (stepHistory.length === 0 || stepHistory[stepHistory.length - 1] !== message) {
@@ -99,6 +105,7 @@ function rebuildStepHistory(data) {
 
     renderStepLog();
 }
+//create the grid in its entirety
 function renderSystem(data) {
     const statusText = document.getElementById('status-text');
     if (data.all_done) {
@@ -136,13 +143,13 @@ function renderSystem(data) {
     
     bufferContainer.appendChild(cellDiv);
 }
-
+//look at each Cell and determine the information
 function createCell(cellData, y, x) {
     const div = document.createElement('div');
     div.classList.add('cell');
     if (!cellData) {
         div.classList.add('unused');
-        div.innerText = "VOID";
+        div.innerText = " ";
         return div;
     }
     const weight = cellData[2];
