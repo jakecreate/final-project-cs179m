@@ -30,6 +30,7 @@ app.secret_key = secrets.token_hex()
 # 'file_name' = the full path of the file that contains the outbound manifest.
 # 'output_name' = the name that the file should be when we output it.
 # 'total_time' = the total time all of the steps will take not including the steps to and from the park cell.
+# 'costs' = ndarray of costs for each step.
 ships = {}
 PARK_Y_COORD = 9
 PARK_X_COORD = 1
@@ -101,7 +102,8 @@ def call_algorithm(filename):
         ending = " container on the ship."
     log("Manifest " + filename + " is opened, there are " + str(num_containers) + ending)
 
-    steps, total_time = algorithm.a_star(X)
+    steps, total_time, costs = algorithm.a_star(X)
+    print("costs:", costs)
 
     # rename the file to "file_nameOUTBOUND.txt"
     output_name = filename.split(".")[0]+"OUTBOUND.txt"
@@ -146,6 +148,7 @@ def call_algorithm(filename):
     ship['total_time'] = total_time
     ship['move_container'] = False
     ship['all_done'] = already_balanced
+    ship['costs'] = costs
 
     if not already_balanced:
         index = grid_index(steps[0, 2], steps[0, 3])
@@ -246,7 +249,8 @@ def current_grid():
                    num_steps=ship['num_steps'],
                    current_step_num=ship['current_step_num'],
                    all_done=ship['all_done'],
-                   total_time=int(ship['total_time']))
+                   total_time=int(ship['total_time']),
+                   costs=ship['costs'])
 
 # POST method to call when the user presses the enter key. returns the next grid step.
 # Input: none
@@ -338,15 +342,6 @@ def next_grid():
         # update the 'grid' in the same way
         ship['grid'][first_index, 2], ship['grid'][second_index, 2] = ship['grid'][second_index, 2], ship['grid'][first_index, 2]
         ship['grid'][first_index, 3], ship['grid'][second_index, 3] = ship['grid'][second_index, 3], ship['grid'][first_index, 3]
-
-        # log that we moved a container
-        # def to_string(num):
-        #     output = str(num)
-        #     if num < 10:
-        #         output = '0' + output
-        #     return output
-        # coords = ship['steps'][curr_step]
-        # log("[" + to_string(coords[0]) + "," + to_string(coords[1]) + "] was moved to [" + to_string(coords[2]) + "," + to_string(coords[3]) + "]")
 
     # update 'current_step_num'
     ship['current_step_num'] += 1
