@@ -36,7 +36,6 @@ async function nextStep() {
     }
 }
 
-
 function renderStepLog() {
     const container = document.getElementById('step-log');
     if (!container) 
@@ -176,7 +175,11 @@ function createCell(cellData, y, x) {
 }
 
 function downloadManifest() {
+    const updateStatus = document.getElementById('update-status');
     window.location.href = "/download_manifest";
+    if(updateStatus) {
+        updateStatus.innerText = "Done! file was written to the desktop";
+    }
 }
 
 function closeApp() {
